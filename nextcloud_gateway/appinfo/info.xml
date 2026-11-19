@@ -4,7 +4,7 @@
   <name>Nextcloud Gateway (experimental)</name>
   <summary>Content validators and conditional writes for the native Files DAV endpoint</summary>
   <description>Experimental, opt-in local-home DAV correctness extension. Not a production compatibility guarantee.</description>
-  <version>0.1.0-rc.3</version>
+  <version>0.1.0</version>
   <licence>agpl</licence>
   <author>upiscium</author>
   <namespace>NextcloudGateway</namespace>

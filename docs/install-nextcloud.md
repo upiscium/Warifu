@@ -1,8 +1,8 @@
-# Warifu for Nextcloud を新規導入する（0.1.0-rc.3）
+# Warifu for Nextcloud を新規導入する（0.1.0）
 
-Warifu はプロジェクトの公開名です。検証済みのRCではアプリ名が「Nextcloud Gateway (experimental)」と表示されます。配置先と `occ` コマンドには `warifu` ではなくアプリID `nextcloud_gateway` を使ってください。
+Warifu はプロジェクトの公開名です。この版ではアプリ名が「Nextcloud Gateway (experimental)」と表示されます。配置先と `occ` コマンドには `warifu` ではなくアプリID `nextcloud_gateway` を使ってください。
 
-この手順は、標準の Files DAV で**専用ユーザーの1フォルダ**に内容SHA-256のETagを導入するためのものです。既にrc.3が稼働しているNASでは再実行しないでください。RCは未署名の手動導入用候補で、App Store配布版でもGAでもありません。
+この手順は、標準の Files DAV で**専用ユーザーの1フォルダ**に内容SHA-256のETagを導入するためのものです。既存のrc.3への上書きには使わず、[更新手順](upgrade.md)を参照してください。本パッケージは未署名の手動配布版で、App Store配布版ではありません。
 
 ## 1. 導入できるかを判定する
 
@@ -13,15 +13,15 @@ Warifu はプロジェクトの公開名です。検証済みのRCではアプ�
 
 ## 2. アーカイブを確認して配置する
 
-使うのは `nextcloud_gateway-0.1.0-rc.3.tar.gz` です。`-source.tar.gz` は対応ソースの閲覧用で、インストール用ではありません。信頼できる経路で入手し、配布者のチェックサムと一致するまで展開しません。ハッシュだけでは配布者の署名の代わりにはなりません。
+使うのは `nextcloud_gateway-0.1.0.tar.gz` です。GitHubのSource codeはインストール用ではありません。信頼できる経路で入手し、配布者のチェックサムと一致するまで展開しません。ハッシュだけでは配布者の署名の代わりにはなりません。
 
 以下はGNU/Linuxでの例です。`APPDIR` を**実際にNextcloudに登録済みの書込み可能なアプリディレクトリ**に変更してください。コンテナではホストの任意のパスではなく、永続化されている `custom_apps` に配置し、全Webワーカーが同じコードを参照するようにします。
 
 ```sh
 set -eu
-ARCHIVE="$PWD/nextcloud_gateway-0.1.0-rc.3.tar.gz"
+ARCHIVE="$PWD/nextcloud_gateway-0.1.0.tar.gz"
 APPDIR=/var/www/html/custom_apps
-printf '%s  %s\n' fc109382044df1cf1d3be733a53730ef707ec691777c482318dbd3578bb689a0 "$ARCHIVE" | sha256sum --check -
+printf '%s  %s\n' 60710d7b1f5ca0eeeccc83814cc9ad0c0edc644461ea452af599e35a4c17ad3f "$ARCHIVE" | sha256sum --check -
 test -d "$APPDIR"
 test ! -L "$APPDIR"
 target="$APPDIR/nextcloud_gateway"
@@ -35,7 +35,7 @@ test ! -e "$stage/nextcloud_gateway"   # 他の配置と衝突したらここで
 rmdir "$stage"                       # 自分が作った空ディレクトリのみ
 ```
 
-Web実行ユーザーがファイルを読めることを確認します。`chmod 777`、署名・互換性検査の無効化、`--force` は不要です。組織の方針が署名必須なら未署名RCの導入は中止してください。
+Web実行ユーザーがファイルを読めることを確認します。`chmod 777`、署名・互換性検査の無効化、`--force` は不要です。組織の方針が署名必須なら未署名版の導入は中止してください。
 
 ## 3. 専用ユーザーを登録し、最後に機能を有効化する
 
@@ -74,7 +74,7 @@ curl -sS --user "$NC_USER" -X PROPFIND -H 'Depth: 0' -w "$fmt" -o /dev/null "$DA
 | そのETagを `If-Match` に指定し別の内容でPUT | 204。新しいGETの本文とETagが一致 |
 | **古い**ETagで再度PUTし、GET | 412。直前に保存した内容が残る。無条件PUTで再試行しない |
 
-合わなければwriterを再開せず、対象UID・フォルダ名・ワーカー間の配置／キャッシュを確認します。実データで削除試験はしません。検証済みのクライアントと対象外の操作は[RCの検証範囲](rc-notes.md)を参照してください。
+合わなければwriterを再開せず、対象UID・フォルダ名・ワーカー間の配置／キャッシュを確認します。実データで削除試験はしません。検証済みのクライアントと対象外の操作は[検証範囲](ga-notes.md)を参照してください。
 
 ## 5. 切り戻す
 
