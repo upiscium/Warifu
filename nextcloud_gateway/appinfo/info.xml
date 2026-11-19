@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+  <id>nextcloud_gateway</id>
+  <name>Nextcloud Gateway (experimental)</name>
+  <summary>Content validators and conditional writes for the native Files DAV endpoint</summary>
+  <description>Experimental, opt-in local-home DAV correctness extension. Not a production compatibility guarantee.</description>
+  <version>0.1.0-rc.3</version>
+  <licence>agpl</licence>
+  <author>upiscium</author>
+  <namespace>NextcloudGateway</namespace>
+  <types><filesystem/></types>
+  <category>files</category>
+  <dependencies><nextcloud min-version="35.0.3" max-version="35.0.3"/></dependencies>
+</info>
