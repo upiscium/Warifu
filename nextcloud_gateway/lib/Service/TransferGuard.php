@@ -70,6 +70,9 @@ final class TransferGuard {
                 }
                 if (!$satisfied) throw new GuardFailure(412, 'DAV content precondition failed');
             }
+            $sourceSize = $s['storage']->filesize($s['path']);
+            if (!is_int($sourceSize) || $sourceSize < 0) throw new GuardFailure(503, 'Invalid transfer source size');
+            RequestLimits::preflightHash($sourceSize);
             \OC_Hook::emit('NextcloudGateway', 'transfer-validated', ['path' => $s['hookPath'], 'destination' => $d['hookPath']]);
             RequestLimits::checkpoint();
         } catch (GuardFailure $error) { throw $error; }

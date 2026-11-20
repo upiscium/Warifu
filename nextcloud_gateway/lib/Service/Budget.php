@@ -7,11 +7,11 @@ namespace OCA\NextcloudGateway\Service;
 
 final class Budget {
     public const DEFAULTS = [
-        'request_seconds' => 30,
-        'max_file_bytes' => 67108864,
-        'max_hash_bytes' => 268435456,
+        'request_seconds' => 300,
+        'max_file_bytes' => 50 * 1024 ** 3,
+        'max_hash_bytes' => 1024 ** 3,
         'max_hash_files' => 1024,
-        'max_entries' => 512,
+        'max_entries' => 2048,
         'max_parallel' => 4,
     ];
 
@@ -63,6 +63,14 @@ final class Budget {
         $this->check();
         if ($this->hashFiles >= $this->limits['max_hash_files']) throw new BudgetExceeded(503, 'file_budget');
         $this->hashFiles++;
+    }
+
+    public function preflightHash(int $bytes): void {
+        $this->check();
+        if ($bytes < 0) throw new \InvalidArgumentException('Hash size cannot be negative');
+        if ($this->hashFiles >= $this->limits['max_hash_files'] || $bytes > $this->limits['max_hash_bytes'] - $this->hashBytes) {
+            throw new BudgetExceeded(503, $this->hashFiles >= $this->limits['max_hash_files'] ? 'file_budget' : 'hash_budget');
+        }
     }
 
     public function entry(): void {

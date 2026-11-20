@@ -93,7 +93,7 @@ final class BulkPlugin extends ServerPlugin {
                     $relative = $this->scope->relative('files/' . $user->getUID() . '/' . $path);
                     $guard = null;
                     try {
-                        if ($relative !== null) $guard = new MutationGuard($this->scope->target($relative), 'PUT', null, null, null);
+                        if ($relative !== null) $guard = new MutationGuard($this->scope->target($relative), 'PUT', null, null, null, strlen($content));
                         $node = $home->newFile($path, $content);
                         if ($guard !== null) $guard->verify();
                         $tag = $guard?->committedTag;

@@ -18,6 +18,7 @@ final class MutationGuard {
         private readonly ?string $match,
         private readonly ?string $noneMatch,
         private readonly ?string $unmodified,
+        private readonly ?int $postWriteBytes = null,
     ) {
         \OCP\Util::connectHook('OC_Filesystem', $operation === 'PUT' ? 'write' : 'delete', $this, 'check');
         if ($operation === 'PUT') \OCP\Util::connectHook('OC_Filesystem', 'post_write', $this, 'capture');
@@ -40,6 +41,11 @@ final class MutationGuard {
             $mtime = $exists ? $t['storage']->filemtime($t['path']) : null;
             if (!Conditions::permits($this->match, $this->noneMatch, $this->unmodified, $exists, $etag, is_int($mtime) ? $mtime : null)) {
                 throw new GuardFailure(412, 'Content precondition failed');
+            }
+            if ($this->operation === 'PUT') {
+                $size = $this->postWriteBytes ?? RequestLimits::bufferedBytes();
+                if ($size === null) throw new GuardFailure(503, 'Missing measured write size');
+                RequestLimits::preflightHash($size);
             }
             // No HTTP-accessible pause/fault injection. Dedicated proof app may observe this.
             \OC_Hook::emit('NextcloudGateway', 'validated', ['path' => $t['hookPath']]);

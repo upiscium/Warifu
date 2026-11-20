@@ -116,9 +116,10 @@ final class GatewayPlugin extends ServerPlugin {
                     $folder = $this->server->tree->getNodeForPath(dirname($request->getPath()));
                     if ($folder->childExists('.target')) throw new Exception\ServiceUnavailable('Restart this pre-existing chunking-v2 upload');
                     $target = $this->scope->target($destinationRelative);
-                    RequestLimits::file($source->getSize());
+                    $assemblySize = $source->getSize();
+                    RequestLimits::file($assemblySize);
                     $none = strtoupper($request->getHeader('Overwrite') ?? 'T') === 'F' ? '*' : null;
-                    $this->guard = new MutationGuard($target, 'PUT', null, $none, null);
+                    $this->guard = new MutationGuard($target, 'PUT', null, $none, null, $assemblySize);
                     $this->chunkMove = true;
                 }
                 $destinationRelative = $this->scope->relative($destination);

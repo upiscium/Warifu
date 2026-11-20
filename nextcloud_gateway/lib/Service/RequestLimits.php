@@ -20,6 +20,7 @@ final class RequestLimits {
     private static array $held = [];
     private static bool $working = false;
     private static array $streams = [];
+    private static ?int $bufferedBytes = null;
     private static ?LimitFailure $failure = null;
     private static ?ILockingProvider $uncachedProvider = null;
 
@@ -118,6 +119,12 @@ final class RequestLimits {
     public static function file(int $bytes): void { self::charge('file', $bytes); }
     public static function hashedFile(): void { self::charge('hashedFile'); }
     public static function hash(int $bytes): void { self::charge('hash', $bytes); }
+    public static function preflightHash(int $bytes): void {
+        if (!self::$working) return;
+        try { self::$budget->preflightHash($bytes); }
+        catch (BudgetExceeded $error) { self::fail($error->status, $error->reason); }
+    }
+    public static function bufferedBytes(): ?int { return self::$bufferedBytes; }
     public static function entry(): void { self::charge('entry'); }
     public static function limit(string $name): int { return self::$budget?->limit($name) ?? Budget::DEFAULTS[$name]; }
     public static function active(): bool { return self::$working; }
@@ -137,7 +144,7 @@ final class RequestLimits {
     /** Read a bounded body BEFORE native PUT takes storage locks. */
     public static function buffer(RequestInterface $request, int $maximum): void {
         $length = $request->getHeader('Content-Length');
-        if ($length !== null && (!ctype_digit($length) || strlen($length) > 10)) self::fail(400, 'invalid_length');
+        if ($length !== null && (!ctype_digit($length) || strlen($length) > strlen((string)Budget::DEFAULTS['max_file_bytes']))) self::fail(400, 'invalid_length');
         if ($length !== null && (int)$length > $maximum) self::fail(413, 'body_limit');
         $input = $request->getBodyAsStream();
         $output = self::temporary();
@@ -152,6 +159,7 @@ final class RequestLimits {
         }
         self::checkpoint();
         if ($length !== null && $bytes !== (int)$length) self::fail(400, 'truncated_body');
+        self::$bufferedBytes = $bytes;
         rewind($output);
         $request->setBody($output);
     }

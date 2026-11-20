@@ -1,26 +1,14 @@
-# Warifu for Nextcloud 0.1.0
+# Warifu for Nextcloud
 
-Warifu（割符）は、Nextcloud 標準 Files WebDAV に内容 SHA-256 の ETag と条件付き更新を追加するサーバーアプリです。アプリ ID は `nextcloud_gateway` です。無条件 PUT を禁止する機能ではありません。
+Warifu（割符）は、Nextcloud 標準 Files WebDAV にファイル内容由来の SHA-256 ETag と条件付き更新を加えるアプリです。アプリIDは `nextcloud_gateway` です。
 
-**0.1.0 は未署名の手動導入版です。** [インストールガイド](docs/install-nextcloud.md)に従い、専用ユーザーと小さなフォルダで受入試験を行ってください。
+**v0.2.0-rc.1 は評価用の未署名リリース候補**です。正式版 v0.1.0 からの自動更新は行いません。
 
-## 対象と保証範囲
+| 確認したいこと | 実行場所と手順 |
+| --- | --- |
+| 稼働中の版・登録先・SHA ETag | [サーバーでは `occ`、手元のPCでは `curl`](docs/check-server.md)。読み取りだけで確認できます |
+| 試験サーバーへの新規導入 | [アーカイブの照合、配置、専用ユーザーでの有効化](docs/install-nextcloud.md) |
+| v0.1.0 からの更新と復旧 | [書込み停止、バックアップ、`occ upgrade`、切戻し](docs/upgrade.md) |
+| 50 GiBのファイル上限と1 GiBの累積ハッシュ上限の違い | [変更点と適用範囲](docs/rc-notes.md) |
 
-アプリの実装は `0.1.0-rc.3` と同一で、配布アーカイブ内の差分はアプリの版番号だけです。
-
-- 固定ランタイム: Nextcloud **35.0.3**、公式 Apache イメージ、PHP **8.5.12**。
-- 想定ストレージ: 暗号化なしのローカルユーザーホーム。
-- 対象範囲: 管理者が明示登録したユーザー／サブディレクトリ。
-- 対象外・未保証: 外部ストレージ、暗号化、他の Nextcloud 版、全 DAV クライアント／機能の互換性、任意環境での本番適合。
-
-`allowed_roots` はアプリの内容条件を適用する範囲であり、ユーザーの認可や App Password のアクセス範囲を狭めません。Nextcloud 標準の DAV 認証・アクセス制御を別途適切に構成してください。外部の書込み入口をアプリが自動で閉鎖することもありません。
-
-## 文書
-
-- [新規インストール](docs/install-nextcloud.md)
-- [GA リリースノート](docs/ga-notes.md)
-- [rc.3 からの更新と切戻し](docs/upgrade.md)
-
-## ライセンスと由来
-
-アプリは GNU AGPL v3 またはそれ以降（`AGPL-3.0-or-later`）です。[LICENSE](nextcloud_gateway/LICENSE) と [NOTICE](nextcloud_gateway/NOTICE.md) を参照してください。
+想定ランタイムは Nextcloud **35.0.3** の固定公式 Apache イメージと PHP **8.5.12**、非暗号化のローカルホーム、対応する DB または Redis ロック構成です。対応範囲外のコア・ストレージ構成は適合済みとみなさないでください。
