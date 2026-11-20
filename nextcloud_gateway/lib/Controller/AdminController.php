@@ -6,6 +6,7 @@ declare(strict_types=1);
 namespace OCA\NextcloudGateway\Controller;
 
 use OCA\NextcloudGateway\Service\GatewayPolicy;
+use OCA\NextcloudGateway\Service\SizeLimits;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\RedirectResponse;
 use OCP\AppFramework\Http\Response;
@@ -14,6 +15,7 @@ use OCP\IConfig;
 use OCP\IGroupManager;
 use OCP\IURLGenerator;
 use OCP\IUserSession;
+use InvalidArgumentException;
 
 final class AdminController extends Controller {
     public function __construct(
@@ -30,6 +32,17 @@ final class AdminController extends Controller {
         if ($user === null || !$this->groupManager->isAdmin($user->getUID())) return new Response(403);
         if (!in_array($mode, ['all', 'selected', 'off'], true)) return new Response(400);
         GatewayPolicy::setMode($this->config, $mode);
+        return new RedirectResponse($this->urlGenerator->linkToRoute('settings.AdminSettings.index', ['section' => 'server']) . '#nextcloud-gateway-admin');
+    }
+
+    public function budget(string $fileGiB = '', string $hashGiB = ''): Response {
+        $user = $this->userSession->getUser();
+        if ($user === null || !$this->groupManager->isAdmin($user->getUID())) return new Response(403);
+        try {
+            SizeLimits::save($this->config, $fileGiB, $hashGiB);
+        } catch (InvalidArgumentException) {
+            return new Response(400);
+        }
         return new RedirectResponse($this->urlGenerator->linkToRoute('settings.AdminSettings.index', ['section' => 'server']) . '#nextcloud-gateway-admin');
     }
 }

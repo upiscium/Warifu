@@ -46,6 +46,7 @@ final class RequestLimits {
             $global = $config->getSystemValue('nextcloud_gateway_limits', []);
             $personal = json_decode($config->getUserValue($uid, 'nextcloud_gateway', 'limits', '{}'), true, flags: JSON_THROW_ON_ERROR);
             if (!is_array($global) || !is_array($personal)) throw new \InvalidArgumentException();
+            $global = SizeLimits::serverLimits($config, $global);
             $serverBudget = new Budget($global);
             new Budget($personal); // Validate before combining: never silently ignore invalid settings.
             foreach ($personal as $key => $value) $global[$key] = min($value, $serverBudget->limit($key));
@@ -144,7 +145,7 @@ final class RequestLimits {
     /** Read a bounded body BEFORE native PUT takes storage locks. */
     public static function buffer(RequestInterface $request, int $maximum): void {
         $length = $request->getHeader('Content-Length');
-        if ($length !== null && (!ctype_digit($length) || strlen($length) > strlen((string)Budget::DEFAULTS['max_file_bytes']))) self::fail(400, 'invalid_length');
+        if ($length !== null && (!ctype_digit($length) || strlen($length) > strlen((string)Budget::MAX_BYTES))) self::fail(400, 'invalid_length');
         if ($length !== null && (int)$length > $maximum) self::fail(413, 'body_limit');
         $input = $request->getBodyAsStream();
         $output = self::temporary();

@@ -6,10 +6,13 @@ declare(strict_types=1);
 namespace OCA\NextcloudGateway\Service;
 
 final class Budget {
+    public const GIB = 1_073_741_824;
+    public const MAX_GIB = 4_294_967_295;
+    public const MAX_BYTES = self::MAX_GIB * self::GIB;
     public const DEFAULTS = [
         'request_seconds' => 300,
-        'max_file_bytes' => 50 * 1024 ** 3,
-        'max_hash_bytes' => 1024 ** 3,
+        'max_file_bytes' => 10 * self::GIB,
+        'max_hash_bytes' => 50 * self::GIB,
         'max_hash_files' => 1024,
         'max_entries' => 2048,
         'max_parallel' => 4,
@@ -27,7 +30,8 @@ final class Budget {
         $this->limits = self::DEFAULTS;
         foreach ($limits as $name => $value) {
             if (!array_key_exists($name, self::DEFAULTS)) throw new \InvalidArgumentException('Unknown budget limit');
-            if (!is_int($value) || $value < 1 || $value > self::DEFAULTS[$name]) throw new \InvalidArgumentException('Invalid budget limit');
+            $maximum = in_array($name, ['max_file_bytes', 'max_hash_bytes'], true) ? self::MAX_BYTES : self::DEFAULTS[$name];
+            if (!is_int($value) || $value < 1 || $value > $maximum) throw new \InvalidArgumentException('Invalid budget limit');
             $this->limits[$name] = $value;
         }
         $this->clock = $clock ?? static fn(): float => hrtime(true) / 1_000_000_000;

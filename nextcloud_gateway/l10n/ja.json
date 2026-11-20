@@ -5,7 +5,12 @@
     "All accounts: entire local home": "全アカウントのローカルホーム全体",
     "Registered folders only": "登録フォルダのみ",
     "Off": "停止",
-    "Save": "保存"
+    "Save": "保存",
+    "File and hashing limits": "ファイルサイズとハッシュ処理の上限",
+    "Limits are in whole GiB. The config.php setting and user-specific caps may result in lower effective limits.": "制限値は整数GiB単位です。config.phpの設定やユーザー別の上限により、実際の上限はさらに低くなる場合があります。",
+    "Maximum file size (GiB)": "最大ファイルサイズ（GiB）",
+    "Cumulative bytes hashed per request (GiB)": "1リクエストの累積ハッシュ処理量（GiB）",
+    "Save limits": "制限を保存"
   },
   "pluralForm": "nplurals=1; plural=0;"
 }

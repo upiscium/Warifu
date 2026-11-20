@@ -6,6 +6,7 @@ declare(strict_types=1);
 namespace OCA\NextcloudGateway\Settings;
 
 use OCA\NextcloudGateway\Service\GatewayPolicy;
+use OCA\NextcloudGateway\Service\SizeLimits;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IConfig;
 use OCP\IURLGenerator;
@@ -21,8 +22,10 @@ final class Admin implements ISettings {
     public function getForm(): TemplateResponse {
         return new TemplateResponse('nextcloud_gateway', 'admin', [
             'mode' => GatewayPolicy::mode($this->config),
+            'limits' => SizeLimits::configured($this->config),
             'formToken' => $this->csrf->getToken()->getEncryptedValue(),
             'action' => $this->urlGenerator->linkToRoute('nextcloud_gateway.admin.save'),
+            'budgetAction' => $this->urlGenerator->linkToRoute('nextcloud_gateway.admin.budget'),
         ]);
     }
 }
