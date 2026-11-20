@@ -68,7 +68,7 @@ final class GatewayPlugin extends ServerPlugin {
     }
 
     public function admit(RequestInterface $request, ResponseInterface $response): void {
-        if ($this->scope->enrolledRoots() === []) return;
+        if (!$this->scope->active()) return;
         $uid = \OCP\Server::get(\OCP\IUserSession::class)->getUser()->getUID();
         $path = $request->getPath();
         $affected = $this->scope->intersects($path) || str_starts_with($path, 'uploads/' . $uid . '/') || trim($path, '/') === 'bulk';
@@ -82,7 +82,7 @@ final class GatewayPlugin extends ServerPlugin {
     }
 
     public function prepare(RequestInterface $request, ResponseInterface $response): ?bool {
-        if ($this->scope->enrolledRoots() === []) return null;
+        if (!$this->scope->active()) return null;
         RequestLimits::checkpoint();
         $method = $request->getMethod();
         if ($method === 'PROPFIND' && RequestLimits::active()) $this->boundListing($request);
@@ -96,7 +96,9 @@ final class GatewayPlugin extends ServerPlugin {
         $uid = \OCP\Server::get(\OCP\IUserSession::class)->getUser()->getUID();
         $upload = str_starts_with($request->getPath(), 'uploads/' . $uid . '/');
         if ($upload) {
-            $this->scope->target('/' . $this->scope->enrolledRoots()[0]);
+            $roots = $this->scope->enrolledRoots();
+            if ($roots === []) $this->scope->homeTarget();
+            else $this->scope->target('/' . $roots[0]);
             $this->uploadRequest = $this->uploads->prepare($request, $uid);
         }
         if (in_array($method, ['COPY', 'MOVE'], true)) {
@@ -278,8 +280,9 @@ final class GatewayPlugin extends ServerPlugin {
         // request-local child cache. Release before per-file ancestor read locks:
         // native providers cannot acquire shared beneath our own exclusive hold.
         if (\OC\Files\Filesystem::getMountManager()->findIn($node->getFileInfo()->getPath()) !== []) throw new Exception\ServiceUnavailable('Bounded listings cannot include submounts');
-        $target = $this->scope->target($node->getPath());
-        $home = in_array($target['hookPath'], ['', '/'], true);
+        $path = $node->getPath();
+        $home = in_array($path, ['', '/'], true);
+        $target = $home ? $this->scope->homeTarget() : $this->scope->target($path);
         // The home root is excluded by native View::shouldLockFile. Its bounded
         // name snapshot must not pretend to hold a native membership lock.
         if (!$home) $this->listingLock = PathHold::acquire($target, ILockingProvider::LOCK_EXCLUSIVE);

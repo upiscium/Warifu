@@ -19,20 +19,36 @@ use Sabre\DAV\Exception\ServiceUnavailable;
 
 final class Scope {
     private ?array $roots = null;
+    private ?string $policy = null;
 
     public function enabled(): bool {
-        return Server::get(IConfig::class)->getAppValue('nextcloud_gateway', 'experimental_enabled', 'no') === 'yes';
+        return $this->mode() !== 'off';
+    }
+
+    private function mode(): string {
+        return $this->policy ??= GatewayPolicy::mode(Server::get(IConfig::class));
+    }
+
+    /** Whether this authenticated user is covered, independently of selected roots. */
+    public function active(): bool {
+        if (!$this->enabled() || Server::get(IUserSession::class)->getUser() === null) return false;
+        return $this->mode() === 'all' || $this->enrolledRoots() !== [];
     }
 
     /** Return a default-view-relative path only for this user's enrolled roots. */
     public function relative(string $davPath): ?string {
-        if (!$this->enabled()) return null;
+        if (!$this->active()) return null;
         $user = Server::get(IUserSession::class)->getUser();
         if ($user === null) return null;
         $prefix = 'files/' . $user->getUID() . '/';
         $davPath = trim($davPath, '/');
         if (!str_starts_with($davPath, $prefix)) return null;
         $relative = substr($davPath, strlen($prefix));
+        if ($this->mode() === 'all') {
+            if ($relative === '') return null;
+            if (!$this->validPath($relative)) throw new Forbidden('Path is outside the supported Gateway namespace');
+            return '/' . $relative;
+        }
         foreach ($this->enrolledRoots() as $root) {
             if ($relative === $root || str_starts_with($relative, $root . '/')) {
                 if (!$this->validPath($relative)) throw new Forbidden('Path is outside the supported Gateway namespace');
@@ -44,7 +60,7 @@ final class Scope {
 
     /** @return list<string> */
     public function enrolledRoots(): array {
-        if (!$this->enabled()) return [];
+        if (!$this->enabled() || $this->mode() === 'all') return [];
         $user = Server::get(IUserSession::class)->getUser();
         if ($user === null) return [];
         if ($this->roots === null) {
@@ -65,6 +81,7 @@ final class Scope {
         $user = Server::get(IUserSession::class)->getUser();
         if ($user === null) return false;
         $path = trim($davPath, '/');
+        if ($this->active() && $this->mode() === 'all') return $path === 'files/' . $user->getUID();
         foreach ($this->enrolledRoots() as $root) {
             if (str_starts_with('files/' . $user->getUID() . '/' . $root, $path . '/')) return true;
         }
@@ -81,6 +98,14 @@ final class Scope {
 
     /** @return array{storage:ILockingStorage,path:string,hookPath:string,provider:ILockingProvider,view:\OC\Files\View} */
     public function target(string $relative): array {
+        if (!str_starts_with($relative, '/') || !$this->validPath(substr($relative, 1))) throw new Forbidden('Invalid storage path');
+        return $this->resolveTarget($relative);
+    }
+
+    /** Home is a collection anchor for listing/upload admission, not a mutation path. */
+    public function homeTarget(): array { return $this->resolveTarget('/'); }
+
+    private function resolveTarget(string $relative): array {
         $provider = self::provider();
         RequestLimits::checkpoint();
         $user = Server::get(IUserSession::class)->getUser();

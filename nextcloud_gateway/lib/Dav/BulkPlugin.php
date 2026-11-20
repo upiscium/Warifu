@@ -35,7 +35,7 @@ final class BulkPlugin extends ServerPlugin {
     }
 
     public function httpPost(RequestInterface $request, ResponseInterface $response): bool {
-        if (trim($request->getPath(), '/') !== 'bulk' || $this->scope->enrolledRoots() === []) return true;
+        if (trim($request->getPath(), '/') !== 'bulk' || !$this->scope->active()) return true;
         Runtime::verify();
 
         // Scope resolution and runtime validation precede reading or writing data.

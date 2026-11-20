@@ -1,22 +1,21 @@
-# Warifu v0.2.0 を新規導入する
+# Warifu v0.3.0 を新規導入する
 
-このアーカイブは未署名で、手動導入を前提とします。署名検証やアプリストア経由の自動更新を期待しないでください。対象環境の適合性を配布物のメタデータと照合し、専用の非管理者ユーザーと専用フォルダを用意します。バックアップの復元可能性を事前に確認してください。
+未署名の手動導入です。対象は Nextcloud 35.0.3、PHP 8.5.12、通常の非暗号化ローカルホームに限ります。外部ストレージ、暗号化、サブマウントは対象外です。復元可能なバックアップを事前に確認してください。
 
-## アーカイブ確認と配置
+## アーカイブ照合と配置
 
-**実行場所：** GNU/Linux上で、配布アーカイブと独立して入手したチェックサムファイルを置いたディレクトリ。配置先が見えるシェルで実行します（Dockerの場合は永続化された`custom_apps`）。値は環境に合わせて置換してください。
+**実行場所：** Linuxサーバー上のシェル。アーカイブと独立して入手したチェックサム情報があるディレクトリで実行します。Dockerでは永続化された `custom_apps` を使います。`APPDIR` は実環境の登録済みアプリディレクトリに変更してください。
 
 ```sh
 set -eu
-ARCHIVE="$PWD/nextcloud_gateway-0.2.0.tar.gz"
-printf '%s  %s\n' 'a48403b7dcb67947f57be734e4462c53ac9a175045b95aa14a753a6313f92766' "$ARCHIVE" | sha256sum --check -
+ARCHIVE="$PWD/nextcloud_gateway-0.3.0.tar.gz"
+test "$(wc -c < "$ARCHIVE" | tr -d ' ')" = '41647'
+printf '%s  %s\n' '09b93665a07bf2ac0e0f5a539a1007a2a6aa9d989e2418b151d0f50dca296fe5' "$ARCHIVE" | sha256sum --check -
 sha256sum --check SHA256SUMS
-APPDIR=/var/www/html/custom_apps  # 実際の登録済み・永続化されたアプリディレクトリ
-test -d "$APPDIR"
-test ! -L "$APPDIR"
+APPDIR=/var/www/html/custom_apps
+test -d "$APPDIR" && test ! -L "$APPDIR"
 target="$APPDIR/nextcloud_gateway"
-test ! -e "$target"
-test ! -L "$target"
+test ! -e "$target" && test ! -L "$target"
 stage=$(mktemp -d "$APPDIR/.ncgw-stage.XXXXXXXX")
 tar --no-same-owner -xzf "$ARCHIVE" -C "$stage"
 test -f "$stage/nextcloud_gateway/appinfo/info.xml"
@@ -25,31 +24,20 @@ test ! -e "$stage/nextcloud_gateway"
 rmdir "$stage"
 ```
 
-`SHA256SUMS`には上記アーカイブ名の行があり、照合結果が`OK`である必要があります。未置換メタデータ、照合不能・不一致、配置先の競合では停止します。上書き、`--force`、既存ディレクトリへの展開はしません。展開後、Web実行ユーザーが読める所有者・権限を設定し、全ワーカーが同じコードを参照することを確認してください。
+期待値：サイズが `41647` bytes、両方のチェックサム検査が `OK`。値が未置換、チェックサム不明・不一致、または配置先が既存なら停止します。既存ディレクトリへの展開・上書きはしません。未署名のチェックサムは配布元の真正性を証明しません。配置後はWeb実行ユーザーが読める所有者・権限にし、全ワーカーが同一コードを参照することを確認します。
 
-## 有効化
+## 有効化とモード
 
-**実行場所：** Nextcloudルート。Web実行ユーザーとして実行します。専用ユーザーとフォルダは事前に用意してください。
+**実行場所：** Nextcloudアプリサーバーの Nextcloud ルート（Dockerならアプリコンテナ内 `/var/www/html`）。Web実行ユーザーで実行します。
 
 ```sh
 php occ status
 php occ app:enable nextcloud_gateway
-NC_USER='専用ユーザーID'
-php occ user:setting "$NC_USER" nextcloud_gateway allowed_roots '["WarifuTrial"]'
-php occ user:setting "$NC_USER" nextcloud_gateway allowed_roots
-php occ config:app:set nextcloud_gateway experimental_enabled --value=yes
+php occ config:app:get nextcloud_gateway scope_mode
 ```
 
-`WarifuTrial`は専用ユーザーのFiles画面で作成したフォルダ名に合わせます。`allowed_roots`はアクセス制御ではありません。App Passwordを発行し、TLS検証を有効にしたHTTPSでDAV接続してください。パスワードをコマンドやシェル履歴に含めないでください。
+新規導入では出力が `all` であることを確認します。これは全ユーザーの通常ローカルホームが対象となる意味です。設定画面は **管理者設定 → 基本設定 → Warifu**（`/index.php/settings/admin/server`）です。`all`、`selected`、`off` を選べます。`selected` はユーザーごとの `allowed_roots` を内容条件の適用範囲として使います。
 
-## 受入と切戻し
+`allowed_roots` はアクセス制御やACLではありません。Nextcloud標準の権限を置き換えず、通常DAVアクセスを制限しません。設定後は[サーバー確認](check-server.md)で設定値とHTTP応答を個別に確認してください。
 
-まず[読み取り専用確認](check-server.md)を行います。その後、本番データではなく新規の合成ファイルだけを用いて条件付きPUT、古いETagによる412、本文の読み戻しを確認します。想定外の結果ならwriterを再開しないでください。
-
-機能を停止する場合はwriter停止後に、NextcloudルートでWeb実行ユーザーとして次を実行します。
-
-```sh
-php occ config:app:set nextcloud_gateway experimental_enabled --value=no
-```
-
-全ワーカーへの反映とDAV応答を確認し、クライアントにvalidatorを再取得させます。アプリ無効化や機能フラグ変更はファイルデータを以前の状態へ戻しません。完全復旧は[更新手順のロールバック](upgrade.md)を参照してください。
+SHA ETag算出はファイル全体をハッシュするため、ファイルサイズ上限より先に要求単位の累積ハッシュ予算へ達する場合があります。大きなファイルの部分読込でも全体のハッシュが必要になり得ます。

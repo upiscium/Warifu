@@ -1,32 +1,36 @@
-# 稼働中サーバーを読み取り専用で確認する
+# 稼働中サーバーを読み取り確認する
 
-以下は設定・ファイルを書き換えません。`occ` は管理者がNextcloudルートでWeb実行ユーザーとして実行します。Dockerの場合、Nextcloudアプリコンテナ（DBコンテナではない）の `/var/www/html` がルートです。
+以下の `occ` と `curl` は設定・ファイルを書き換えません。値は実環境のものに置き換えます。
 
-## サーバー側の状態
+## サーバー設定
 
-**実行場所：** Nextcloudルート。Dockerならホスト上でアプリコンテナに入り、コンテナ内の `/var/www/html` をカレントディレクトリにします。
+**実行場所：** Nextcloudアプリサーバーの Nextcloud ルート。Dockerならホストからアプリコンテナに入り、コンテナ内 `/var/www/html` をカレントディレクトリにします。DBコンテナではありません。Web実行ユーザーで実行します。
 
 ```sh
-NC_USER='専用ユーザーID'
+NC_USER='ユーザーID'
 php occ status
 php occ config:app:get nextcloud_gateway installed_version
 php occ app:list
-php occ config:app:get nextcloud_gateway experimental_enabled
+php occ config:app:get nextcloud_gateway scope_mode
 php occ user:setting "$NC_USER" nextcloud_gateway allowed_roots
 ```
 
-`status` の `installed`、`maintenance`、`needsDbUpgrade` とアプリの有効状態・版・機能フラグ・ユーザー設定を、管理者が期待する状態と照合してください。値が異なる場合は、読み取り確認だけで止め、変更する前に管理者へ確認します。
+期待する版は `0.3.0`。`scope_mode` は `all`、`selected`、`off` のいずれかです。`all` は全ユーザーのローカルホーム、`selected` は `allowed_roots` による内容条件の適用範囲、`off` は機能停止です。新規導入の既定は `all`。v0.2.0からの更新は旧 `experimental_enabled=yes` なら選択登録相当、それ以外（未設定を含む）は `off` です。更新時に全体へ自動拡張されません。管理者画面は **管理者設定 → 基本設定 → Warifu**（`/index.php/settings/admin/server`）。`allowed_roots` はNextcloudのアクセス制御・ACLではありません。
 
 ## 認証済みDAVの読み取り確認
 
-**実行場所：** クライアントPCの任意のディレクトリ。curl 7.84以降を使用します。ホスト名、ユーザーID、登録フォルダとファイル名は実在する値に置換してください。`--user` にパスワードを含めず、プロンプトでApp Passwordを入力します。
+更新直後は `scope_mode` キーがまだなく、`occ` が値を返さない場合があります。旧設定を読み替えた**実効モード**は上記の管理画面で確認できます。確認だけなら保存する必要はありません。
+
+**実行場所：** クライアントPCの任意の作業ディレクトリ。curl 7.84以降を使います。TLS検証を無効にしないでください。App Passwordをプロンプト入力できるよう `--user` にパスワードを含めません。
 
 ```sh
-NC_USER='専用ユーザーID'
+NC_USER='ユーザーID'
 DAV="https://cloud.example.org/remote.php/dav/files/$NC_USER"
-curl -sS -X PROPFIND -H 'Depth: 0' -w '%{http_code}\n' -o /dev/null "$DAV/WarifuTrial/"
-curl -sS --user "$NC_USER" -X PROPFIND -H 'Depth: 0' -w '%{http_code} gateway=%header{x-nextcloud-gateway}\n' -o /dev/null "$DAV/WarifuTrial/"
-curl -sS --user "$NC_USER" -I -o /dev/null -w '%{http_code} gateway=%header{x-nextcloud-gateway} etag=%header{etag}\n' "$DAV/WarifuTrial/small.txt"
+curl -sS -X PROPFIND -H 'Depth: 0' -w '%{http_code}\n' -o /dev/null "$DAV/WarifuTest/"
+curl -sS --user "$NC_USER" -X PROPFIND -H 'Depth: 0' -w '%{http_code} gateway=%header{x-nextcloud-gateway}\n' -o /dev/null "$DAV/WarifuTest/"
+curl -sS --user "$NC_USER" -I -o /dev/null -w '%{http_code} gateway=%header{x-nextcloud-gateway} etag=%header{etag}\n' "$DAV/WarifuTest/small.txt"
 ```
 
-パス例は置換必須です。未認証要求は通常401、認証済みの許可フォルダは207が期待されます。v0.2.0の機能が有効な場合、Gatewayヘッダーと `"ncgw-sha256-` に続く64桁のSHA-256 ETagが期待値です。実際の応答は環境・設定に依存します。HTTP 207や`occ`の成功だけでは機能適用の確認になりません。この読み取り確認は書込み受入試験の代用ではありません。
+URL、ユーザー、パスは実在する値に置換します。典型的には匿名要求 `401`、認証済み許可フォルダ `207` が期待されます。対象モードが有効な場合、ファイル応答には `X-Nextcloud-Gateway: experimental-1` と `"ncgw-sha256-` で始まる64桁SHA-256 ETagが現れます。実応答は構成に依存し、`occ` の成功だけではHTTP適用を確認できません。
+
+外部ストレージ、暗号化、サブマウントは対象外です。ハッシュはファイル全体を読むので、サイズ上限未満でも累積ハッシュ予算に達し得ます。

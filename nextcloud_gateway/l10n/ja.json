@@ -1,0 +1,11 @@
+{
+  "translations": {
+    "Effective gateway policy:": "現在の適用範囲:",
+    "Gateway policy": "適用範囲",
+    "All accounts: entire local home": "全アカウントのローカルホーム全体",
+    "Registered folders only": "登録フォルダのみ",
+    "Off": "停止",
+    "Save": "保存"
+  },
+  "pluralForm": "nplurals=1; plural=0;"
+}
