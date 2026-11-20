@@ -17,7 +17,7 @@ php occ config:app:get nextcloud_gateway size_limits_gib
 php occ user:setting "$NC_USER" nextcloud_gateway allowed_roots
 ```
 
-版は `0.3.1-rc.1`、PHP確認は成功すること。scopeは `all`、`selected`、`off` のいずれかです。新規導入既定は `all`。v0.3.0からの更新では旧動作を継承し、更新で全体へ自動拡張しません。`allowed_roots` は内容条件の範囲でACLではありません。アプリの1ファイル既定値は10 GiB、要求単位の累積ハッシュ予算は50 GiBで、それぞれ独立した管理者設定は1〜4294967295整数GiBです。設定を確認するためだけに値を変更しないでください。`config.php` やユーザーのバイト上限は引き上げません。
+版は `0.3.1`、PHP確認は成功すること。scopeは `all`、`selected`、`off` のいずれかです。新規導入既定は `all`。更新では旧動作を引き継ぎ、更新で全体へ自動拡張しません。`allowed_roots` は内容条件の範囲でありACLではありません。アプリの1ファイル既定値は10 GiB、要求単位の累積ハッシュ予算は50 GiBで、それぞれ独立した管理者設定は1〜4294967295整数GiBです。設定が保存済みならその値を確認します。設定を確認するためだけに変更・保存しないでください。`config.php` やユーザーのバイト上限は引き上げません。
 
 ## 認証済みDAV読み取り確認
 
