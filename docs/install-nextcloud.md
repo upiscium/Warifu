@@ -1,14 +1,15 @@
-# Warifu v0.2.0-rc.1 を新規導入する
+# Warifu v0.2.0 を新規導入する
 
-この候補は未署名です。対象は [README](../README.md) 記載の固定ランタイムと対応ローカルストレージに限ります。専用の非管理者ユーザーと小さな専用フォルダを用意し、バックアップの復元可能性を事前確認してください。
+このアーカイブは未署名で、手動導入を前提とします。署名検証やアプリストア経由の自動更新を期待しないでください。対象環境の適合性を配布物のメタデータと照合し、専用の非管理者ユーザーと専用フォルダを用意します。バックアップの復元可能性を事前に確認してください。
 
 ## アーカイブ確認と配置
 
-**実行場所：** GNU/Linuxで、配布アーカイブと `SHA256SUMS` を置いたディレクトリ。実際のアプリ配置先が見えるシェルで実行します（Dockerなら永続化された `custom_apps`）。下の照合で対象ファイルが `OK` になってから配置します。
+**実行場所：** GNU/Linux上で、配布アーカイブと独立して入手したチェックサムファイルを置いたディレクトリ。配置先が見えるシェルで実行します（Dockerの場合は永続化された`custom_apps`）。値は環境に合わせて置換してください。
 
 ```sh
 set -eu
-ARCHIVE="$PWD/nextcloud_gateway-0.2.0-rc.1.tar.gz"
+ARCHIVE="$PWD/nextcloud_gateway-0.2.0.tar.gz"
+printf '%s  %s\n' 'a48403b7dcb67947f57be734e4462c53ac9a175045b95aa14a753a6313f92766' "$ARCHIVE" | sha256sum --check -
 sha256sum --check SHA256SUMS
 APPDIR=/var/www/html/custom_apps  # 実際の登録済み・永続化されたアプリディレクトリ
 test -d "$APPDIR"
@@ -24,11 +25,11 @@ test ! -e "$stage/nextcloud_gateway"
 rmdir "$stage"
 ```
 
-`SHA256SUMS` は候補アーカイブ名の行を含み、その照合が成功することを確認します。照合不能・不一致・配置先の競合なら停止し、上書き、`--force`、既存ディレクトリへの展開はしません。Web実行ユーザーから読める所有者・権限を設定します。全ワーカーが同一コードを見ることを確認してください。
+`SHA256SUMS`には上記アーカイブ名の行があり、照合結果が`OK`である必要があります。未置換メタデータ、照合不能・不一致、配置先の競合では停止します。上書き、`--force`、既存ディレクトリへの展開はしません。展開後、Web実行ユーザーが読める所有者・権限を設定し、全ワーカーが同じコードを参照することを確認してください。
 
 ## 有効化
 
-NextcloudルートでWeb実行ユーザーとして実行します。フラグを最後に有効化します。
+**実行場所：** Nextcloudルート。Web実行ユーザーとして実行します。専用ユーザーとフォルダは事前に用意してください。
 
 ```sh
 php occ status
@@ -39,10 +40,16 @@ php occ user:setting "$NC_USER" nextcloud_gateway allowed_roots
 php occ config:app:set nextcloud_gateway experimental_enabled --value=yes
 ```
 
-専用ユーザーのFiles画面で `WarifuTrial` を作成しておきます。`allowed_roots` はアクセス制御ではありません。App Passwordを発行し、HTTPSでDAVを接続します。TLS検証を無効化せず、パスワードをコマンドや履歴に含めません。
+`WarifuTrial`は専用ユーザーのFiles画面で作成したフォルダ名に合わせます。`allowed_roots`はアクセス制御ではありません。App Passwordを発行し、TLS検証を有効にしたHTTPSでDAV接続してください。パスワードをコマンドやシェル履歴に含めないでください。
 
 ## 受入と切戻し
 
-まず [読み取り専用確認](check-server.md) を行います。次に、実データでなく新規の合成ファイルだけを使って条件付きPUTと古いETagによる412を確認し、本文を読み戻します。想定外ならwriterを再開しないでください。
+まず[読み取り専用確認](check-server.md)を行います。その後、本番データではなく新規の合成ファイルだけを用いて条件付きPUT、古いETagによる412、本文の読み戻しを確認します。想定外の結果ならwriterを再開しないでください。
 
-機能のみ戻す場合はwriter停止後 `php occ config:app:set nextcloud_gateway experimental_enabled --value=no` を実行し、全ワーカーへ反映されたことを認証済みDAVで確認します。ETag方式が変わるためクライアントにvalidatorを再取得させます。アプリ無効化はデータを以前の内容に戻しません。
+機能を停止する場合はwriter停止後に、NextcloudルートでWeb実行ユーザーとして次を実行します。
+
+```sh
+php occ config:app:set nextcloud_gateway experimental_enabled --value=no
+```
+
+全ワーカーへの反映とDAV応答を確認し、クライアントにvalidatorを再取得させます。アプリ無効化や機能フラグ変更はファイルデータを以前の状態へ戻しません。完全復旧は[更新手順のロールバック](upgrade.md)を参照してください。
